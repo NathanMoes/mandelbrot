@@ -1,10 +1,32 @@
 use num::Complex;
 use std::str::FromStr;
+use image::ColorType;
+use image::png::PNGEncoder;
+use std::fs::File;
+use std::env;
 
 fn main() {
-    println!("Hello, world!");
-    let x = 1.0;
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 5{
+        eprintln!("Usage: mandelbrot FILE PIXELS UPPERLEFT LOWERRIGHT");
+        eprintln!("Example: {} mandel.png 1000x750 -1.20,0.35 -1,0.20",
+            args[0]);
+        std::process::exit(1);
+    }
 
+    let bounds = parse_pair(&args[2], 'x')
+        .expect("error parsing image dimensions");
+    let upper_left = parse_complex(&args[3])
+        .expect("error parsing upper left corner point");
+    let lower_right = parse_complex(&args[4])
+        .expect("error parsing lower right corner point");
+
+    let mut pixels = vec![0; bounds.0 * bounds.1];
+
+    render(&mut pixels, bounds, upper_left, lower_right);
+
+    write_image(&args[1], &pixels, bounds)
+        .expect("error writing PNG file");
 }
 
 fn parse_pair<T: FromStr>(s: &str, separator: char)-> Option<(T, T)>{
@@ -67,6 +89,16 @@ fn render(pixels: &mut[u8],
             }
         }
     }
+
+/// Write the buffer 'pixels', whose dimensions are given by 'bounds', to the File named 'filename'
+fn write_image(filename: &str, pixels: &[u8], bounds: (usize, usize)) -> Result<(), std::io::Error>{
+    let output = File::create(filename)?;
+    let encoder = PNGEncoder::new(output);
+    encoder.encode(&pixels,
+        bounds.0 as u32, bounds.1 as u32,
+        ColorType::Gray(8))?;
+    Ok(())
+}
 
 
 #[test]
